@@ -1,0 +1,103 @@
+
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}My Cart {% endblock %}
+
+{% block content %}
+<h2 class="text-2xl font-bold mb-4">My Cart</h2>
+
+{% if cart %}
+<ul class="space-y-4" id="cart-list">
+    {% for item in cart.items.all %}
+    <li class="cart-item flex items-center p-4 border rounded" data-product-id="{{ item.product.id }}">
+        {% if item.product.image %}
+        <img src="{{ item.product.image.url }}" alt="{{ item.product.name }}" class="w-40 rounded-xl mr-4">
+        {% endif %}
+
+        <div class="flex flex-col gap-2">
+            <a href="{% url 'products:product_detail' item.product.id item.product.slug %}" class="text-blue-600 hover:underline">
+                <h3 class="text-lg font-semibold text-gray-800">{{ item.product.name }}</h3>
+            </a>
+            <p class="text-sm text-gray-600">{{ item.product.description }}</p>
+            <p class="text-base text-indigo-600 font-bold">Price: ${{ item.product.price }}</p>
+            <p class="text-sm text-gray-700 item-quantity">Quantity: {{ item.quantity }}</p>
+
+            <form action="{% url 'cart:cart_remove' item.product.id %}" method="post" class="remove-from-cart-form mt-2">
+                {% csrf_token %}
+                <button type="submit" class="bg-red-600 text-white px-4 py-2 rounded">Remove</button>
+                <p class="remove-message text-sm mt-1"></p>
+            </form>
+        </div>
+    </li>
+    {% endfor %}
+</ul>
+<p>Total Price {{cart.get_total_price}} </p>
+{% else %}
+<p id="empty-message" class="text-gray-500">Your cart is empty.</p>
+{% endif %}
+<form action=" {% url 'orders:order_create' %}" method="post" class="mt-6 mb-2">
+    {% csrf_token %}
+    <button type="submit" class="bg-green-600 text-white px-4 py-2 rounded">proceed to check-out</button>
+</form>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('.remove-from-cart-form').forEach(form => {
+        form.addEventListener('submit', function(event) {
+            event.preventDefault();
+
+            const url = form.action;
+            const formData = new FormData(form);
+            const messageElement = form.querySelector('.remove-message');
+
+            fetch(url, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': formData.get('csrfmiddlewaretoken')
+                },
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    messageElement.textContent = data.message;
+                    messageElement.style.color = 'green';
+
+                    const cartItem = form.closest('.cart-item');
+
+                    if (data.quantity_left === 0) {
+                        cartItem.remove();
+                    } else {
+                        cartItem.querySelector('.item-quantity').textContent = `Quantity: ${data.quantity_left}`;
+                    }
+
+                    // Show "Your cart is empty" if no items remain
+                    if (document.querySelectorAll('.cart-item').length === 0) {
+                        const emptyMsg = document.getElementById('empty-message');
+                        if (emptyMsg) {
+                            emptyMsg.style.display = 'block';
+                        } else {
+                            const p = document.createElement('p');
+                            p.id = 'empty-message';
+                            p.className = 'text-gray-500';
+                            p.textContent = 'Your cart is empty.';
+                            document.getElementById('cart-list').replaceWith(p);
+                        }
+                    }
+                } else {
+                    messageElement.textContent = 'Failed to remove item.';
+                    messageElement.style.color = 'red';
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                messageElement.textContent = 'Something went wrong.';
+                messageElement.style.color = 'red';
+            });
+        });
+    });
+});
+</script>
+{% endblock %}

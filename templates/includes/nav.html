@@ -1,0 +1,8 @@
+{% load static %}
+<nav class="container mx-auto flex justify-between items-center">
+    <a href="/" class="text-2xl font-bold text-indigo-600">E-Comm</a>
+    <a href="{% url 'cart:cart_detail' %}">
+        <i class="fa-solid fa-cart-shopping justify-between text-3xl m-3"></i>
+    </a>
+    
+</nav>
